@@ -1,0 +1,654 @@
+<title>POS Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Public+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#F6F5F0; --raise:#FFFFFF; --ink:#16211E; --muted:#5F6D67; --faint:#8E9A94;
+  --rule:#DFDDD4; --jade:#2F7A6B; --jade-soft:#E4EFEB; --amber:#B8801F; --amber-soft:#F6EEDC;
+  --clay:#A2594A; --clay-soft:#F3E4E0; --shadow:0 1px 2px rgba(22,33,30,.06),0 8px 24px rgba(22,33,30,.05);
+}
+:root:not([data-theme="light"]){ @media (prefers-color-scheme: dark){
+  --paper:#111917; --raise:#1A2522; --ink:#EDEFEA; --muted:#A3B0AA; --faint:#7A8882;
+  --rule:#2A3733; --jade:#6FC2AC; --jade-soft:#1C302B; --amber:#E0A94A; --amber-soft:#2E2718;
+  --clay:#D08A78; --clay-soft:#30211E; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+}}
+:root[data-theme="dark"]{
+  --paper:#111917; --raise:#1A2522; --ink:#EDEFEA; --muted:#A3B0AA; --faint:#7A8882;
+  --rule:#2A3733; --jade:#6FC2AC; --jade-soft:#1C302B; --amber:#E0A94A; --amber-soft:#2E2718;
+  --clay:#D08A78; --clay-soft:#30211E; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);
+  font:400 16px/1.55 "Public Sans",-apple-system,BlinkMacSystemFont,sans-serif;
+  margin:0;min-height:100vh}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:600;text-wrap:balance;margin:0}
+code,.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+.shell{max-width:1140px;margin:0 auto;padding:28px 24px 72px;display:flex;flex-direction:column;gap:22px}
+
+/* --- rail ------------------------------------------------------------- */
+.rail{display:flex;gap:4px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--rule);padding-bottom:14px}
+.brand{font-family:Fraunces,serif;font-size:15px;font-weight:600;margin-right:auto;letter-spacing:-.01em}
+.brand span{color:var(--jade)}
+.tab{appearance:none;border:1px solid transparent;background:none;color:var(--muted);cursor:pointer;
+  font:500 12.5px/1 "Public Sans",sans-serif;padding:7px 11px;border-radius:999px;letter-spacing:.01em}
+.tab:hover{color:var(--ink);background:var(--jade-soft)}
+.tab[aria-selected="true"]{background:var(--jade);color:#fff;border-color:var(--jade)}
+.tab:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+
+/* --- slide ------------------------------------------------------------ */
+.slide{display:none;flex-direction:column;gap:20px;animation:rise .25s ease both}
+.slide[data-on]{display:flex}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.slide{animation:none}}
+
+.head{display:flex;flex-direction:column;gap:6px;max-width:66ch}
+.eyebrow{font:500 11px/1 "JetBrains Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--jade)}
+.head h2{font-size:clamp(24px,3.4vw,33px);letter-spacing:-.02em}
+.head p{margin:0;color:var(--muted);font-size:15px}
+
+.grid{display:grid;gap:14px}
+.g3{grid-template-columns:repeat(auto-fit,minmax(248px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+
+.card{background:var(--raise);border:1px solid var(--rule);border-radius:10px;padding:16px 17px;
+  display:flex;flex-direction:column;gap:9px}
+.card h3{font-size:16.5px;letter-spacing:-.01em}
+.card p{margin:0;color:var(--muted);font-size:14px}
+.card.lane{border-top:3px solid var(--jade)}
+.card.lane.amber{border-top-color:var(--amber)}
+.card.lane.clay{border-top-color:var(--clay);opacity:.82}
+
+.tag{display:inline-block;font:500 11px/1 "JetBrains Mono",monospace;padding:4px 7px;border-radius:5px;
+  background:var(--jade-soft);color:var(--jade);letter-spacing:.02em}
+.tag.amber{background:var(--amber-soft);color:var(--amber)}
+.tag.clay{background:var(--clay-soft);color:var(--clay)}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+
+ul.tight{margin:0;padding-left:17px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
+ul.tight strong{color:var(--ink);font-weight:500}
+ul.bare{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+
+/* --- rules list ------------------------------------------------------- */
+.rule-row{display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start;
+  padding:13px 0;border-bottom:1px solid var(--rule)}
+.rule-row:last-child{border-bottom:0}
+.rule-n{font:500 12px/1.5 "JetBrains Mono",monospace;color:var(--jade)}
+.rule-row h3{font-size:15.5px;margin-bottom:3px}
+.rule-row p{margin:0;color:var(--muted);font-size:13.5px}
+.rule-row.hard h3::after{content:"never overridable";font:500 10px/1 "JetBrains Mono",monospace;
+  margin-left:8px;padding:3px 6px;border-radius:4px;background:var(--clay-soft);color:var(--clay);
+  letter-spacing:.04em;vertical-align:1px}
+
+/* --- tree ------------------------------------------------------------- */
+.tree{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.95;
+  background:var(--raise);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;overflow-x:auto}
+.tree .dir{color:var(--jade);font-weight:500}
+.tree .note{color:var(--faint)}
+.tree .lock{color:var(--clay)}
+
+/* --- pipeline --------------------------------------------------------- */
+.pipe{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.stage{appearance:none;text-align:left;cursor:pointer;flex:1 1 150px;min-width:140px;
+  background:var(--raise);border:1px solid var(--rule);border-radius:9px;padding:12px 13px;
+  display:flex;flex-direction:column;gap:5px;color:var(--ink);transition:border-color .15s,transform .15s}
+.stage:hover{border-color:var(--jade);transform:translateY(-2px)}
+.stage[aria-pressed="true"]{border-color:var(--jade);background:var(--jade-soft)}
+.stage:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.stage .n{font:500 10.5px/1 "JetBrains Mono",monospace;color:var(--faint);letter-spacing:.08em}
+.stage .t{font:600 14px/1.25 Fraunces,serif}
+.stage .s{font:400 12px/1.35 "Public Sans",sans-serif;color:var(--muted)}
+.detail{background:var(--raise);border:1px solid var(--jade);border-left-width:3px;border-radius:10px;
+  padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-height:116px}
+.detail h3{font-size:16px}
+.detail p{margin:0;color:var(--muted);font-size:14px}
+.detail .mono{font-size:12.5px;color:var(--jade)}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:720px){.split{grid-template-columns:1fr}}
+.flow{background:var(--jade-soft);border:1px dashed var(--jade);border-radius:9px;padding:13px 15px}
+.flow h3{font-size:14px;color:var(--jade);margin-bottom:5px}
+.flow p{margin:0;font-size:13px;color:var(--muted)}
+.flow.warn{background:var(--clay-soft);border-color:var(--clay)}
+.flow.warn h3{color:var(--clay)}
+
+/* --- system map ------------------------------------------------------- */
+.mapwrap{overflow-x:auto;background:var(--raise);border:1px solid var(--rule);border-radius:10px;padding:10px}
+.map{display:block;min-width:900px;width:100%;height:auto}
+.m-band{font:500 10px/1 "JetBrains Mono",monospace;letter-spacing:.1em;fill:var(--faint)}
+.m-t{font:600 13px/1 Fraunces,serif;fill:var(--ink)}
+.m-s{font:400 11.5px/1 "Public Sans",sans-serif;fill:var(--muted)}
+.m-lock{font:500 10.5px/1 "JetBrains Mono",monospace;fill:var(--clay)}
+.m-ok{font:500 10.5px/1 "JetBrains Mono",monospace;fill:var(--jade)}
+
+/* --- roadmap ---------------------------------------------------------- */
+.phase{display:grid;grid-template-columns:40px 1fr 128px 104px;gap:12px;align-items:start;
+  padding:15px 17px;border-bottom:1px solid var(--rule)}
+.phase:last-child{border-bottom:0}
+.phase h3{font-size:15.5px;margin-bottom:3px}
+.phase p{margin:0;color:var(--muted);font-size:13.5px}
+.phase p.gate{margin-top:5px;color:var(--faint);font-size:12.5px}
+.ph-n{font:600 19px/1.1 Fraunces,serif;color:var(--faint)}
+.phase.done .ph-n{color:var(--jade)} .phase.live .ph-n{color:var(--amber)}
+.ph-when{font:400 12px/1.5 "JetBrains Mono",monospace;color:var(--faint)}
+.ph-st{justify-self:end;font:500 10.5px/1 "JetBrains Mono",monospace;padding:5px 8px;border-radius:5px;
+  white-space:nowrap;letter-spacing:.03em}
+.ph-st.ok{background:var(--jade-soft);color:var(--jade)}
+.ph-st.run{background:var(--amber-soft);color:var(--amber)}
+.ph-st.half{background:var(--jade-soft);color:var(--jade)}
+.ph-st.wait{background:var(--rule);color:var(--muted)}
+.phase.live{background:var(--amber-soft)}
+@media (max-width:720px){
+  .phase{grid-template-columns:32px 1fr;gap:10px}
+  .ph-when,.ph-st{grid-column:2;justify-self:start}
+}
+
+.foot{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  border-top:1px solid var(--rule);padding-top:14px;font-size:13px;color:var(--faint)}
+.nav{display:flex;gap:7px}
+.nav button{appearance:none;border:1px solid var(--rule);background:var(--raise);color:var(--ink);
+  border-radius:7px;width:34px;height:30px;cursor:pointer;font-size:14px}
+.nav button:hover{border-color:var(--jade);color:var(--jade)}
+.nav button:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
+.count{font-family:"JetBrains Mono",monospace;font-size:12px;font-variant-numeric:tabular-nums}
+</style>
+
+<div class="shell">
+  <nav class="rail" role="tablist" aria-label="Sections">
+    <div class="brand">POS <span>·</span> personal operating system</div>
+    <button class="tab" role="tab" aria-selected="true" data-go="0">Life</button>
+    <button class="tab" role="tab" aria-selected="false" data-go="1">Rules</button>
+    <button class="tab" role="tab" aria-selected="false" data-go="2">Knowledge base</button>
+    <button class="tab" role="tab" aria-selected="false" data-go="3">Pipeline</button>
+    <button class="tab" role="tab" aria-selected="false" data-go="4">System map</button>
+    <button class="tab" role="tab" aria-selected="false" data-go="5">Roadmap</button>
+  </nav>
+
+  <!-- 1 ─ LIFE -->
+  <section class="slide" data-on role="tabpanel">
+    <div class="head">
+      <div class="eyebrow">01 — Life architecture</div>
+      <h2>Three lives, one inbox, four surfaces</h2>
+      <p>Everything POS does is sorted into three areas. A fourth exists and is deliberately invisible to it.</p>
+    </div>
+
+    <div class="grid g4">
+      <div class="card lane">
+        <div class="tag">Personal</div>
+        <p>Home, admin, health. Travel, and seeing friends and family.</p>
+      </div>
+      <div class="card lane">
+        <div class="tag">Student</div>
+        <p>SDS · Chiba Tech. Thesis as action design research. <strong>APS II showcase, 4 Dec</strong>. Classes Mon, Tue, Thu.</p>
+      </div>
+      <div class="card lane amber">
+        <div class="tag amber">Studio</div>
+        <p>AI Sprint (<strong>5 of 10 SMEs</strong>), independent studio, career pivot, LinkedIn × WITJ.</p>
+      </div>
+      <div class="card lane clay">
+        <div class="tag clay">Day job — out of scope</div>
+        <p>Work mail, colleagues and the office. POS does not read, rank or draft any of it — the exclusion is enforced in code, not left to judgement.</p>
+      </div>
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <h3>Apps it lives on</h3>
+        <ul class="tight">
+          <li><strong>Gmail ×2</strong> — personal + chibatech, read &amp; draft only</li>
+          <li><strong>Google Calendar ×2</strong> — read only, never edited</li>
+          <li><strong>Discord</strong> — where POS talks to Tuba</li>
+          <li><strong>Granola</strong> — meeting notes, pasted into Discord</li>
+          <li><strong>Slack</strong> — Henkaku workspace, read for voice</li>
+          <li><strong>Obsidian</strong> — the vault, the single source of truth</li>
+          <li class="note">Also present, not wired: LinkedIn, Canva, Instagram, GitHub</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Devices it spans</h3>
+        <ul class="tight">
+          <li><strong>MacBook Air</strong> — the only place POS runs. Mail, calendar and vault all live here.</li>
+          <li><strong>Phone</strong> — Discord. Where the brief is actually read, and where ✅ gets tapped.</li>
+          <li><strong>iPad</strong> — reading and sketching; nothing automated.</li>
+          <li><strong>Moleskine</strong> — thinking gets materialised on paper. POS never sees it, and that is the point.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flow">
+      <h3>The asymmetry that shapes everything</h3>
+      <p>POS runs on one machine but is read on another. That is why every answer is a tap — a reaction, not a typed reply — and why the brief has to fit one phone screen.</p>
+    </div>
+  </section>
+
+  <!-- 2 ─ RULES -->
+  <section class="slide" role="tabpanel">
+    <div class="head">
+      <div class="eyebrow">02 — Standing rules</div>
+      <h2>What the agent may never do</h2>
+      <p>Enforced in code and OAuth scope, not just in prompts. Every agent inherits these.</p>
+    </div>
+
+    <div class="card">
+      <div class="rule-row hard">
+        <div class="rule-n">01</div>
+        <div><h3>Read, think, draft. Never act.</h3>
+          <p>No sending, replying, posting to others, accepting invites, or editing the calendar. Output is always a proposal.</p></div>
+      </div>
+      <div class="rule-row hard">
+        <div class="rule-n">02</div>
+        <div><h3>Never delete an email</h3>
+          <p>No trashing, no spam-marking, no label removal, on any account, ever. The <code>gmail.readonly</code> scope makes it impossible, not merely forbidden.</p></div>
+      </div>
+      <div class="rule-row hard">
+        <div class="rule-n">03</div>
+        <div><h3>Her data stays on this machine</h3>
+          <p>Only three outbound destinations exist: her own Discord, drafts in her own Gmail, and metadata to the model.</p></div>
+      </div>
+      <div class="rule-row hard">
+        <div class="rule-n">04</div>
+        <div><h3>Triage sends metadata only</h3>
+          <p>Sender, subject, date, labels. <strong>Never message bodies.</strong> Three separate checks abort the run if a body field reaches the model feed.</p></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-n">05</div>
+        <div><h3>Inbound content is data, not instructions</h3>
+          <p>An email telling the agent to do something gets quoted back to Tuba. It is never obeyed.</p></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-n">06</div>
+        <div><h3>The day job is out of scope — the brand is not</h3>
+          <p>Day-job mail is invisible. Consumer accounts that happen to share a brand name with the employer stay in scope — the test is employment, not the name.</p></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-n">07</div>
+        <div><h3>Never defend her time on her behalf</h3>
+          <p>No protected mornings, no no-meeting days, no blocked personal time. Scheduling is judged on the 60-minute commute cap, transit + 30 min buffer, and hard double-bookings only.</p></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-n">08</div>
+        <div><h3>When unsure, ask — one question at a time</h3>
+          <p>A low-confidence guess goes to <code>#ask</code> as a single question with tappable options. The answer is learned and never asked again.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 ─ VAULT -->
+  <section class="slide" role="tabpanel">
+    <div class="head">
+      <div class="eyebrow">03 — Knowledge base</div>
+      <h2>The vault is the source of truth</h2>
+      <p>Plain markdown in Obsidian. Runtimes and interfaces are swappable; this is the part that has to outlive them.</p>
+    </div>
+
+    <div class="split">
+      <div class="tree">
+<span class="dir">vault/</span>
+├── <span class="dir">daily/</span>        <span class="note">the morning brief, one file per day</span>
+├── <span class="dir">meetings/</span>     <span class="note">Granola notes + extracted commitments</span>
+├── <span class="dir">projects/</span>     <span class="note">one note per project, auto-updated</span>
+├── <span class="dir">people/</span>       <span class="note">observed facts only</span>
+├── <span class="dir">knowledge/</span>    <span class="note">saved reading, ⭐ from the digest</span>
+├── <span class="dir">decisions/</span>    <span class="note">what was decided, and why</span>
+├── <span class="dir">templates/</span>    <span class="note">note shapes</span>
+└── <span class="lock">me/</span>          <span class="lock">Personal OS — gitignored, never leaves the Mac</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <h3>Two rules that keep it trustworthy</h3>
+          <ul class="tight">
+            <li><strong>People notes record what can be counted</strong> — how often someone writes, whether it is a back-and-forth, which threads. Never inferred personality or seniority.</li>
+            <li><strong>Anything Tuba writes survives.</strong> Regeneration rewrites the generated sections and leaves <code>## Notes</code> untouched.</li>
+          </ul>
+        </div>
+        <div class="flow warn">
+          <h3>Why <code>me/</code> is sealed</h3>
+          <p>It holds the Personal OS — values, anchors, the manifesto. Agents may read it to make a judgment call, never quote it, never diagnose from it, never repeat it into Discord or a draft.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 ─ PIPELINE -->
+  <section class="slide" role="tabpanel">
+    <div class="head">
+      <div class="eyebrow">04 — Technical architecture</div>
+      <h2>What happens at 07:00</h2>
+      <p>Thirteen stages, one launchd job. Tap a stage.</p>
+    </div>
+
+    <div class="pipe" id="pipe"></div>
+    <div class="detail" id="detail" aria-live="polite"></div>
+
+    <div class="split">
+      <div class="flow">
+        <h3>The two-file rule</h3>
+        <p>Every ingest writes twice. <code>gmail-*.jsonl</code> keeps the bodies and stays here. <code>triage-*.jsonl</code> carries metadata only and is the only thing the model ever sees. The projection is an allowlist, so a new field is excluded by default.</p>
+      </div>
+      <div class="flow warn">
+        <h3>Next</h3>
+        <p><strong>Five clean mornings</strong> closes Phase 1 · <strong>specialist agents</strong> activate only where the brief proves weak · <strong>a transit API</strong> turns estimated commutes into computed ones · <strong>a local model</strong> so nothing leaves the Mac at all.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 ─ SYSTEM MAP -->
+  <section class="slide" role="tabpanel">
+    <div class="head">
+      <div class="eyebrow">05 — System map</div>
+      <h2>What touches what</h2>
+      <p>The boundary is the point: everything inside the dotted box stays on the MacBook. Three things cross it, and each is labelled.</p>
+    </div>
+
+    <div class="mapwrap">
+      <svg viewBox="0 0 1160 630" role="img" aria-label="System architecture: cloud sources on the left, the MacBook in the centre, outbound destinations on the right" class="map">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--faint)"/>
+          </marker>
+          <marker id="arj" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--jade)"/>
+          </marker>
+          <marker id="arc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--clay)"/>
+          </marker>
+        </defs>
+
+        <!-- column labels -->
+        <text x="18" y="28" class="m-band">CLOUD · SOURCES</text>
+        <text x="330" y="28" class="m-band">TUBA’S MACBOOK AIR — nothing here leaves</text>
+        <text x="950" y="28" class="m-band">LEAVES THE MACHINE</text>
+
+        <!-- machine boundary -->
+        <rect x="318" y="40" width="572" height="572" rx="14" fill="var(--jade-soft)" stroke="var(--jade)" stroke-width="1.5" stroke-dasharray="7 5"/>
+
+        <!-- sources -->
+        <g>
+          <rect x="18" y="52" width="268" height="50" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+          <text x="32" y="74" class="m-t">Gmail · personal</text>
+          <text x="32" y="91" class="m-s">readonly + compose · historyId cursor</text>
+
+          <rect x="18" y="112" width="268" height="50" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+          <text x="32" y="134" class="m-t">Gmail · chibatech</text>
+          <text x="32" y="151" class="m-s">readonly + compose · historyId cursor</text>
+
+          <rect x="18" y="172" width="268" height="50" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+          <text x="32" y="194" class="m-t">Google Calendar ×2</text>
+          <text x="32" y="211" class="m-s">readonly · syncToken · never edited</text>
+
+          <rect x="18" y="232" width="268" height="50" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+          <text x="32" y="254" class="m-t">Granola</text>
+          <text x="32" y="271" class="m-s">note pasted by hand → Discord</text>
+
+          <rect x="18" y="292" width="268" height="50" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+          <text x="32" y="314" class="m-t">Slack · Henkaku</text>
+          <text x="32" y="331" class="m-s">read only · voice samples</text>
+        </g>
+
+        <!-- source arrows -->
+        <path d="M286 77 H318" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+        <path d="M286 137 H318" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+        <path d="M286 197 H318" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+        <path d="M286 257 H318" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+        <path d="M286 317 H318" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+
+        <!-- scheduler -->
+        <rect x="340" y="56" width="528" height="38" rx="8" fill="var(--raise)" stroke="var(--jade)"/>
+        <text x="356" y="80" class="m-t">launchd · 07:00 Asia/Tokyo → run_daily.sh</text>
+
+        <!-- ingest row -->
+        <rect x="340" y="110" width="168" height="54" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+        <text x="354" y="132" class="m-t">ingest_gmail</text>
+        <text x="354" y="149" class="m-s">backoff · retry list</text>
+
+        <rect x="520" y="110" width="168" height="54" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+        <text x="534" y="132" class="m-t">ingest_calendar</text>
+        <text x="534" y="149" class="m-s">dedupes 2 calendars</text>
+
+        <rect x="700" y="110" width="168" height="54" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+        <text x="714" y="132" class="m-t">discord_notes</text>
+        <text x="714" y="149" class="m-s">Granola → meetings</text>
+
+        <path d="M424 164 V186" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+        <path d="M604 164 V186" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+        <path d="M784 164 V186" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+
+        <!-- the split -->
+        <text x="340" y="206" class="m-band">THE TWO-FILE RULE</text>
+        <rect x="340" y="214" width="258" height="62" rx="8" fill="var(--clay-soft)" stroke="var(--clay)"/>
+        <text x="354" y="236" class="m-t">gmail-*.jsonl · calendar-*.jsonl</text>
+        <text x="354" y="253" class="m-s">full bodies, descriptions, meeting links</text>
+        <text x="354" y="269" class="m-lock">never leaves this box</text>
+
+        <rect x="610" y="214" width="258" height="62" rx="8" fill="var(--raise)" stroke="var(--jade)"/>
+        <text x="624" y="236" class="m-t">triage-*.jsonl</text>
+        <text x="624" y="253" class="m-s">sender · subject · date · labels</text>
+        <text x="624" y="269" class="m-ok">allowlist — new fields excluded by default</text>
+
+        <!-- triage -->
+        <path d="M739 276 V300" stroke="var(--jade)" fill="none" marker-end="url(#arj)"/>
+        <rect x="610" y="300" width="258" height="54" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+        <text x="624" y="322" class="m-t">triage.py</text>
+        <text x="624" y="339" class="m-s">9 categories · unsure → #ask</text>
+
+        <!-- local stores -->
+        <rect x="340" y="300" width="258" height="54" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+        <text x="354" y="322" class="m-t">state/</text>
+        <text x="354" y="339" class="m-s">cursors · tasks · sender book</text>
+
+        <!-- orchestrator -->
+        <path d="M739 354 V382" stroke="var(--jade)" fill="none" marker-end="url(#arj)"/>
+        <rect x="610" y="382" width="258" height="54" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+        <text x="624" y="404" class="m-t">orchestrator · claude -p</text>
+        <text x="624" y="421" class="m-s">the only stage that calls a model</text>
+
+        <!-- outputs -->
+        <path d="M739 436 V464" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+        <rect x="340" y="464" width="528" height="54" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+        <text x="354" y="486" class="m-t">brief_post · make_draft · projects · people · digest</text>
+        <text x="354" y="503" class="m-s">tasks with ✅ 🚫 · drafts · vault notes · newsletter digest</text>
+
+        <rect x="340" y="534" width="528" height="58" rx="8" fill="var(--raise)" stroke="var(--rule)"/>
+        <text x="354" y="556" class="m-t">vault/ — Obsidian</text>
+        <text x="354" y="573" class="m-s">daily · meetings · projects · people · knowledge · decisions</text>
+        <text x="354" y="588" class="m-lock">vault/me/ — Personal OS, gitignored</text>
+        <path d="M604 518 V534" stroke="var(--faint)" fill="none" marker-end="url(#ar)"/>
+
+        <!-- crossings -->
+        <path d="M868 241 H1000" stroke="var(--amber)" fill="none" marker-end="url(#ar)" stroke-dasharray="5 4"/>
+        <rect x="1000" y="214" width="146" height="56" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+        <text x="1012" y="236" class="m-t">Anthropic API</text>
+        <text x="1012" y="252" class="m-s">metadata only</text>
+        <text x="1012" y="266" class="m-s">no bodies, ever</text>
+
+        <path d="M868 491 H1000" stroke="var(--jade)" fill="none" marker-end="url(#arj)"/>
+        <rect x="1000" y="452" width="146" height="78" rx="8" fill="var(--raise)" stroke="var(--jade)"/>
+        <text x="1012" y="474" class="m-t">Discord</text>
+        <text x="1012" y="490" class="m-s">12 channels</text>
+        <text x="1012" y="505" class="m-t">Gmail drafts</text>
+        <text x="1012" y="521" class="m-s">never sent</text>
+
+        <path d="M868 563 H1000" stroke="var(--clay)" fill="none" marker-end="url(#arc)" stroke-dasharray="3 4"/>
+        <rect x="1000" y="538" width="146" height="58" rx="8" fill="var(--clay-soft)" stroke="var(--clay)"/>
+        <text x="1012" y="559" class="m-t">Obsidian Sync</text>
+        <text x="1012" y="574" class="m-s">if enabled —</text>
+        <text x="1012" y="589" class="m-lock">see the note below</text>
+      </svg>
+    </div>
+
+    <div class="split">
+      <div class="flow warn">
+        <h3>One boundary worth deciding on</h3>
+        <p><code>vault/me/</code> is kept out of git so the Personal OS never reaches a remote. But <strong>Obsidian Sync is a cloud service</strong> — if it is on for that folder, the OS leaves the Mac regardless of gitignore. End-to-end encrypted, but off-machine. Exclude <code>me/</code> from Sync, or decide that Sync is an accepted destination.</p>
+      </div>
+      <div class="flow">
+        <h3>Why only three arrows cross</h3>
+        <p>Metadata to the model, output to her own Discord and her own drafts. Everything else — bodies, descriptions, meeting links, the sender book, the vault — is read and written on the one machine.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 ─ ROADMAP -->
+  <section class="slide" role="tabpanel">
+    <div class="head">
+      <div class="eyebrow">06 — Roadmap</div>
+      <h2>Built, gated, and deliberately deferred</h2>
+      <p>Four phases shipped in one day. The one that isn’t done is waiting on evidence, not on work.</p>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="phase done">
+        <div class="ph-n">0</div>
+        <div><h3>Prep</h3><p>Goals, constraints, voice, accounts, Discord server, eval set.</p></div>
+        <div class="ph-when">4 Oct</div>
+        <div class="ph-st ok">done</div>
+      </div>
+      <div class="phase live">
+        <div class="ph-n">1</div>
+        <div><h3>Daily brief</h3><p>Gmail ×2 + Calendar ×2 → triage → brief → Discord, drafts, launchd at 07:00.</p>
+          <p class="gate">Gate: <strong>5 consecutive mornings</strong> delivered · eval ≥90% urgent recall · ≤10% false alarms · zero sends.</p></div>
+        <div class="ph-when">5–10 Oct</div>
+        <div class="ph-st run">built · gating</div>
+      </div>
+      <div class="phase done">
+        <div class="ph-n">2</div>
+        <div><h3>People + knowledge</h3><p>Person notes from countable facts, newsletter digest, <code>#ask</code> with learned answers.</p></div>
+        <div class="ph-when">4 Oct</div>
+        <div class="ph-st ok">done</div>
+      </div>
+      <div class="phase done">
+        <div class="ph-n">3</div>
+        <div><h3>Meetings + follow-through</h3><p>Granola → vault, commitments with deadlines, waiting-for, Sunday review.</p></div>
+        <div class="ph-when">4–5 Oct</div>
+        <div class="ph-st ok">done</div>
+      </div>
+      <div class="phase part">
+        <div class="ph-n">4</div>
+        <div><h3>Specialists + portability</h3>
+          <p>OpenCode target built — switching runtime is one command. Seven specialist agents defined, one active.</p>
+          <p class="gate">Held back on purpose: the plan says activate them <em>where the brief proves weak</em>. One brief has run.</p></div>
+        <div class="ph-when">after a week of briefs</div>
+        <div class="ph-st half">portability done</div>
+      </div>
+      <div class="phase next">
+        <div class="ph-n">5</div>
+        <div><h3>Model independence</h3>
+          <p>Run triage and drafting against a model on the Mac, so nothing leaves it at all. Swap only if the evals hold against the Claude baseline.</p></div>
+        <div class="ph-when">deferred — owner priority</div>
+        <div class="ph-st wait">later</div>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card">
+        <h3>Smaller things queued</h3>
+        <ul class="tight">
+          <li><strong>Transit API</strong> — commute gaps are estimated today; the buffer rule wants computed ones</li>
+          <li><strong>Japanese voice samples</strong> — no JA writing exists to learn from, so JA drafts stay flagged unverified</li>
+          <li><strong>Granola auto-post</strong> — manual paste now; a folder rule or paid plan removes the step</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Known soft spots</h3>
+        <ul class="tight">
+          <li><strong>The Mac sleeps at 07:00</strong> — launchd skips rather than defers. A missed morning looks like a quiet one; <code>#agent-log</code> is the tell</li>
+          <li><strong>Token lifetime</strong> — an OAuth token expired mid-build once; the auth probe now alerts before the work</li>
+          <li><strong>Eval needs real labels</strong> — accuracy is unmeasured until rows are corrected</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>How a phase closes</h3>
+        <p>Not by being built. By meeting the acceptance line written in <code>docs/BUILD_PLAN.md</code> before the work started — delivered mornings, measured recall, zero sends.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <span class="count" id="count">01 / 06</span>
+    <span>← → to move · a personal system, documented</span>
+    <div class="nav">
+      <button id="prev" aria-label="Previous">←</button>
+      <button id="next" aria-label="Next">→</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STAGES = [
+  {n:"01", t:"Read taps", s:"reactions + #ask",
+   d:"Yesterday's ✅ and 🚫 close those tasks; an #ask answer is written to the sender book and never asked again. Reactions need no privileged intent, which is what makes a once-a-day job workable.",
+   f:"read_reactions.py · ask_one.py"},
+  {n:"02", t:"Ingest mail", s:"2 accounts, incremental",
+   d:"Gmail historyId cursors, so nothing is read twice. Failures are carried in a pending list rather than blocking the cursor — an earlier version held the cursor back on any error and the job could never move past one bad message.",
+   f:"ingest_gmail.py"},
+  {n:"03", t:"Ingest calendar", s:"2 calendars, syncToken",
+   d:"Duplicate events across the personal and university calendars are tagged, not deleted — flagged in Housekeeping, ignored for conflict checks so phantom double-bookings stop hiding the real ones.",
+   f:"ingest_calendar.py"},
+  {n:"04", t:"Meeting notes", s:"Discord → vault",
+   d:"A Granola note pasted into #meeting-notes becomes a vault note, commitments with deadlines parsed from Tuba's own words, and waiting-for items for everyone else. Quoted verbatim — POS never paraphrases what she promised.",
+   f:"discord_notes.py · ingest_meetings.py"},
+  {n:"05", t:"Triage", s:"classify by sender",
+   d:"Nine categories from structural rules plus a learned sender book. Low confidence goes to #ask rather than being guessed. Currently about 7% of mail is flagged urgent, against a ≤10% target.",
+   f:"triage.py · config/triage-rules.yaml"},
+  {n:"06", t:"Build feed", s:"metadata only",
+   d:"The model input is assembled from triage projections and checked again for body fields. If one ever appears the run aborts and deletes the feed rather than sending it.",
+   f:"run_daily.sh"},
+  {n:"07", t:"Orchestrator", s:"claude -p",
+   d:"The only stage that calls a model, and it sees sender, subject, date and labels — never a message body. Auth is probed first so a dead token alerts #agent-log instead of failing silently at 07:00.",
+   f:"agents/orchestrator.md"},
+  {n:"08", t:"Deliver", s:"brief + tasks",
+   d:"A compact summary, then one message per task so each can be closed on its own. Capped at eight; the rest are listed compactly. Once a day, enforced by a stamp — a second run refreshes the vault and posts nothing.",
+   f:"brief_post.py"},
+  {n:"09", t:"Vault", s:"people · projects · digest",
+   d:"Person notes from countable facts, project notes gathering every meeting and open commitment, newsletters grouped into one digest instead of forty separate items.",
+   f:"people.py · projects.py · digest.py"},
+];
+
+const slides = [...document.querySelectorAll(".slide")];
+const tabs = [...document.querySelectorAll(".tab")];
+let at = 0;
+
+function show(i){
+  at = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, k) => k === at ? s.setAttribute("data-on","") : s.removeAttribute("data-on"));
+  tabs.forEach((t, k) => t.setAttribute("aria-selected", k === at ? "true" : "false"));
+  document.getElementById("count").textContent =
+    String(at + 1).padStart(2,"0") + " / " + String(slides.length).padStart(2,"0");
+}
+tabs.forEach(t => t.addEventListener("click", () => show(+t.dataset.go)));
+document.getElementById("prev").addEventListener("click", () => show(at - 1));
+document.getElementById("next").addEventListener("click", () => show(at + 1));
+addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") show(at + 1);
+  if (e.key === "ArrowLeft") show(at - 1);
+});
+
+const pipe = document.getElementById("pipe");
+const detail = document.getElementById("detail");
+function pick(i){
+  [...pipe.children].forEach((b, k) => b.setAttribute("aria-pressed", k === i ? "true" : "false"));
+  const s = STAGES[i];
+  detail.innerHTML = "";
+  const h = document.createElement("h3"); h.textContent = s.n + " — " + s.t;
+  const p = document.createElement("p"); p.textContent = s.d;
+  const f = document.createElement("div"); f.className = "mono"; f.textContent = s.f;
+  detail.append(h, p, f);
+}
+STAGES.forEach((s, i) => {
+  const b = document.createElement("button");
+  b.className = "stage"; b.type = "button"; b.setAttribute("aria-pressed","false");
+  b.innerHTML = '<span class="n"></span><span class="t"></span><span class="s"></span>';
+  b.querySelector(".n").textContent = s.n;
+  b.querySelector(".t").textContent = s.t;
+  b.querySelector(".s").textContent = s.s;
+  b.addEventListener("click", () => pick(i));
+  pipe.append(b);
+});
+pick(0);
+show(0);
+</script>
